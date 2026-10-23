@@ -1,0 +1,6 @@
+.git
+.qa
+data
+node_modules
+.env
+*.zip

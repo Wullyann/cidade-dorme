@@ -1,0 +1,64 @@
+import {randomInt,randomUUID} from 'node:crypto';
+import {challenge,normalize} from './challenges.mjs';
+function assignTasks(count) {
+ const tasks=[],categories=new Set();
+ for(let i=0;i<1000&&tasks.length<count;i++) {
+  const next=challenge();
+  if(categories.has(next.category))continue;
+  categories.add(next.category);tasks.push({...next,attempts:0,done:false});
+ }
+ return tasks;
+}
+export const defaults={killers:3,detectives:2,angels:2,jokers:1,detectiveSeconds:45,angelSeconds:30,killerSeconds:30,dawnSeconds:12,debateSeconds:120,voteSeconds:45,natural:10,investigateMin:3,investigateMax:5,tasks:3,reduction:25,attempts:3,reveal:false,noRepeatProtection:true};
+export function ensure(test,message='Ação não permitida.') {if(!test)throw new Error(message);}
+export function config(input={}) {
+ const c={...defaults};
+ for(const key of Object.keys(c))if(key in input){if(typeof c[key]==='boolean'){ensure(typeof input[key]==='boolean','Configuração inválida.');c[key]=input[key];}else{ensure(Number.isFinite(input[key])&&Number.isInteger(input[key]),'Use números inteiros.');c[key]=input[key];}}
+ for(const k of ['killers','detectives','angels','jokers'])ensure(c[k]>=0&&c[k]<=35,'Quantidade de personagens inválida.');
+ ensure(c.killers>=1,'Configure pelo menos um assassino.');
+ for(const k of ['detectiveSeconds','angelSeconds','killerSeconds','dawnSeconds','debateSeconds','voteSeconds'])ensure(c[k]>=5&&c[k]<=1800,'Cronômetros: de 5 a 1800 segundos.');
+ ensure(c.natural>=0&&c.natural<=100&&c.reduction>=0&&c.reduction<=100,'Probabilidade: de 0 a 100.');
+ ensure(c.investigateMin>=1&&c.investigateMax>=c.investigateMin&&c.investigateMax<=35,'Grupo de investigação inválido.');
+ ensure(c.tasks>=0&&c.tasks<=10&&c.attempts>=1&&c.attempts<=10,'Tarefas ou tentativas inválidas.');return c;
+}
+export function room(settings={}) {return {config:config(settings),players:[],phase:'lobby',night:0,events:[],investigations:[],votes:{},attacks:{},protections:{},winner:null,paused:false,deadline:null,revision:0};}
+export function log(r,text,secret=false){r.events.push({at:Date.now(),night:r.night,text,secret});}
+export function join(r,name){ensure(r.phase==='lobby','A partida já começou.');ensure(r.players.length<40,'Sala cheia.');ensure(typeof name==='string'&&name.trim().length>=2&&name.trim().length<=24,'Nome: de 2 a 24 caracteres.');ensure(!r.players.some(p=>normalize(p.name)===normalize(name)),'Este nome já está na sala. Use outro apelido ou retorne pelo mesmo navegador.');const p={id:randomUUID(),name:name.trim(),alive:true,role:null,prisoner:null,jailedBy:null,skipNight:0,tasks:[],cause:null,lastProtected:null};r.players.push(p);return p;}
+export function free(r,p){if(p.jailedBy){const d=r.players.find(x=>x.id===p.jailedBy);if(d)d.prisoner=null;p.jailedBy=null;log(r,`${p.name} foi libertado.`);}}
+export function kill(r,p,cause){if(!p?.alive)return;free(r,p);if(p.prisoner){const q=r.players.find(x=>x.id===p.prisoner);if(q)free(r,q);}p.alive=false;p.cause=cause;r.pendingDead??=[];r.pendingDead.push(p.id);log(r,`${p.name}: ${cause} (${p.role}).`,true);}
+export function victory(r){const alive=r.players.filter(p=>p.alive);if(!r.winner){if(!alive.some(p=>p.role==='assassino'))r.winner='cidade';else if(alive.every(p=>p.role==='assassino'))r.winner='assassinos';}if(r.winner){r.phase='ended';r.deadline=null;log(r,`Partida encerrada. Vitória: ${r.winner}.`);}return !!r.winner;}
+export function phase(r,name,now=Date.now()){r.phase=name;r.phaseId=randomUUID();const key={detective:'detectiveSeconds',angels:'angelSeconds',killers:'killerSeconds',dawn:'dawnSeconds',debate:'debateSeconds',vote:'voteSeconds'}[name];r.deadline=key?now+r.config[key]*1000:null;}
+export function nextDetective(r,now){while(r.detectiveIndex<r.detectiveQueue.length){const p=r.players.find(x=>x.id===r.detectiveQueue[r.detectiveIndex]);if(p?.alive&&!p.jailedBy&&p.skipNight!==r.night){phase(r,'detective',now);return;}if(p?.prisoner)free(r,r.players.find(x=>x.id===p.prisoner));r.detectiveIndex++;}phase(r,'angels',now);}
+export function night(r,now){r.night++;r.attacks={};r.protections={};r.votes={};r.pendingDead=[];for(const p of r.players)p.tasks=p.alive?assignTasks(r.config.tasks):[];r.detectiveQueue=r.players.filter(p=>p.role==='detetive').map(p=>p.id);r.detectiveIndex=0;log(r,`Noite ${r.night}. A cidade dorme.`);if(r.night===1)phase(r,'angels',now);else nextDetective(r,now);}
+export function start(r,now=Date.now()){ensure(r.phase==='lobby');const c=r.config;const roles=[...Array(c.killers).fill('assassino'),...Array(c.detectives).fill('detetive'),...Array(c.angels).fill('anjo'),...Array(c.jokers).fill('joker')];ensure(r.players.length>=Math.max(4,roles.length),'Jogadores insuficientes para os personagens configurados (mínimo 4).');while(roles.length<r.players.length)roles.push('cidadão');for(let i=roles.length-1;i>0;i--){const j=randomInt(i+1);[roles[i],roles[j]]=[roles[j],roles[i]];}r.players.forEach((p,i)=>p.role=roles[i]);night(r,now);}
+export function announce(r){for(const id of r.pendingDead??[]){const p=r.players.find(x=>x.id===id);log(r,`${p.name} morreu.${r.config.reveal?' Personagem: '+p.role+'.':''}`);}r.pendingDead=[];}
+export function resolveNight(r,random=()=>randomInt(1e9)/1e9){const protectedIds=new Set(Object.values(r.protections));for(const id of new Set(Object.values(r.attacks))){const p=r.players.find(x=>x.id===id);if(p&&!protectedIds.has(id))kill(r,p,'assassinato');}const candidates=r.players.filter(p=>p.alive);if(candidates.length){const p=candidates[Math.min(candidates.length-1,Math.floor(random()*candidates.length))];const risk=r.config.natural/100*Math.pow(1-r.config.reduction/100,p.tasks.filter(t=>t.done).length);if(random()<risk)kill(r,p,'morte natural');}announce(r);}
+export function resolveVote(r){const counts={};for(const [voter,target]of Object.entries(r.votes)){const a=r.players.find(p=>p.id===voter),b=r.players.find(p=>p.id===target);if(a?.alive&&!a.jailedBy&&b?.alive&&!b.jailedBy)counts[target]=(counts[target]||0)+1;}const top=Math.max(0,...Object.values(counts)),leaders=Object.keys(counts).filter(id=>counts[id]===top);r.voteResult={counts,eliminated:leaders.length===1?leaders[0]:null,reason:top===0?'Sem votos válidos.':leaders.length>1?'Empate. Ninguém foi eliminado.':'Eliminação por votação.'};if(leaders.length===1){const p=r.players.find(x=>x.id===leaders[0]);kill(r,p,'votação');announce(r);if(p.role==='joker')r.winner='joker';}log(r,r.voteResult.reason);return victory(r);}
+export function advance(r,now=Date.now()){ensure(r.phase!=='lobby'&&r.phase!=='ended','A fase não pode avançar.');switch(r.phase){case 'detective':{const p=r.players.find(x=>x.id===r.detectiveQueue[r.detectiveIndex]);if(p?.prisoner)free(r,r.players.find(x=>x.id===p.prisoner));r.detectiveIndex++;if(!victory(r))nextDetective(r,now);break;}case 'angels':phase(r,'killers',now);break;case 'killers':resolveNight(r);phase(r,'dawn',now);break;case 'dawn':if(!victory(r))phase(r,'debate',now);break;case 'debate':r.votes={};phase(r,'vote',now);break;case 'vote':if(!resolveVote(r))night(r,now);break;}}
+export function tick(r,now=Date.now()){if(!r.paused&&r.deadline&&now>=r.deadline){advance(r,now);return true;}return false;}
+export function act(r,p,type,data={},now=Date.now()){
+ ensure(!r.paused&&r.phase!=='lobby'&&r.phase!=='ended','Aguarde a partida estar em andamento.');ensure(!r.deadline||now<r.deadline,'O tempo desta fase terminou.');ensure(p.alive,'Você foi eliminado.');
+ if(type==='task'){ensure(['detective','angels','killers'].includes(r.phase),'Desafios disponíveis somente à noite.');const t=p.tasks.find(x=>x.id===data.id);ensure(t&&!t.done&&t.attempts<r.config.attempts,'Desafio indisponível.');if(t.preview){ensure(t.shownAt&&now>=t.shownAt+t.hideAfter,'Memorize primeiro os números.');}t.attempts++;t.done=normalize(data.answer)===normalize(t.answer);return {correct:t.done};}
+ if(type==='memory'){const t=p.tasks.find(x=>x.id===data.id);ensure(t?.preview&&['detective','angels','killers'].includes(r.phase),'Desafio indisponível.');t.shownAt??=now;return {preview:now<t.shownAt+t.hideAfter?t.preview:null,until:t.shownAt+t.hideAfter};}
+ ensure(!p.jailedBy,'Prisioneiros não podem usar habilidades nem votar.');
+ const target=r.players.find(x=>x.id===data.target);
+ if(type==='vote'){ensure(r.phase==='vote'&&!(p.id in r.votes),'Você já votou ou a votação não começou.');ensure(data.target===null||(target?.alive&&!target.jailedBy),'Voto inválido.');r.votes[p.id]=data.target;return;}
+ if(type==='protect'){ensure(r.phase==='angels'&&p.role==='anjo'&&!(p.id in r.protections));ensure(target?.alive,'Alvo inválido.');ensure(!r.config.noRepeatProtection||p.lastProtected!==target.id||p.lastProtectedNight!==r.night-1,'Escolha outra pessoa nesta noite.');r.protections[p.id]=target.id;p.lastProtected=target.id;p.lastProtectedNight=r.night;log(r,`${p.name} protegeu ${target.name}.`,true);return;}
+ if(type==='attack'){ensure(r.phase==='killers'&&p.role==='assassino'&&!(p.id in r.attacks));ensure(target?.alive&&target.id!==p.id,'Alvo inválido.');r.attacks[p.id]=target.id;log(r,`${p.name} escolheu ${target.name}.`,true);return;}
+ ensure(r.phase==='detective'&&p.role==='detetive'&&r.detectiveQueue[r.detectiveIndex]===p.id);
+ if(p.prisoner){ensure(type==='release'||type==='execute','Decida o destino do prisioneiro.');const q=r.players.find(x=>x.id===p.prisoner);if(type==='release'){free(r,q);return;}kill(r,q,'execução');if(q.role!=='assassino')p.skipNight=r.night+1;announce(r);r.detectiveIndex++;if(!victory(r))nextDetective(r,now);return;}
+ if(type==='arrest'){ensure(target?.alive&&!target.jailedBy&&target.id!==p.id,'Alvo inválido.');p.prisoner=target.id;target.jailedBy=p.id;log(r,`${target.name} foi preso.`);log(r,`${p.name} prendeu ${target.name}.`,true);}
+ else if(type==='investigate'){ensure(Array.isArray(data.targets),'Selecione o grupo.');const ids=[...new Set(data.targets)];ensure(ids.length>=r.config.investigateMin&&ids.length<=r.config.investigateMax,'Tamanho do grupo inválido.');ensure(ids.every(id=>r.players.some(x=>x.id===id&&x.alive)),'Grupo inválido.');const found=ids.some(id=>r.players.find(x=>x.id===id).role==='assassino');r.investigations.push({night:r.night,detective:p.name,players:ids,found});log(r,`${p.name} investigou: ${found?'há assassino':'não há assassino'} no grupo.`,true);}
+ else throw new Error('Ação inválida.');r.detectiveIndex++;nextDetective(r,now);
+}
+export function view(r,identity={kind:'public'},now=Date.now()){
+ const admin=identity.kind==='admin',me=r.players.find(x=>x.id===identity.playerId);
+ const shown=p=>({id:p.id,name:p.name,alive:p.alive,jailed:!!p.jailedBy,...(admin?{role:p.role,prisoner:p.prisoner,skipNight:p.skipNight,completed:p.tasks.filter(t=>t.done).length}:{}),...(!p.alive&&r.config.reveal?{role:p.role}:{})});
+ // Deaths during the night remain secret until dawn; executions are announced immediately.
+ const pending=new Set(r.pendingDead??[]);
+ const players=r.players.map(p=>{const s=shown(p);if(!admin&&p.id!==me?.id&&pending.has(p.id)){s.alive=true;delete s.role;}return s;});
+ const v={phase:r.phase,phaseId:r.phaseId,night:r.night,deadline:r.deadline,serverNow:now,paused:r.paused,remaining:r.remaining,revision:r.revision,winner:r.winner,players,events:r.events.filter(e=>admin||!e.secret),config:r.config,voteResult:r.voteResult??null,activeDetective:!!me&&r.phase==='detective'&&me.id===r.detectiveQueue?.[r.detectiveIndex],voted:Object.keys(r.votes).length};
+ if(admin){v.investigations=r.investigations;v.actions={attacks:r.attacks,protections:r.protections,votes:r.votes};}
+ if(me){v.me={...shown(me),role:me.role,suspended:me.skipNight===r.night,cause:me.cause,prisoner:me.prisoner,lastProtected:me.lastProtectedNight===r.night-1?me.lastProtected:null,voted:me.id in r.votes,acted:me.id in (r.phase==='angels'?r.protections:r.attacks),risk:r.config.natural*Math.pow(1-r.config.reduction/100,me.tasks.filter(t=>t.done).length),tasks:me.tasks.map(({answer,preview,shownAt,...t})=>({...t,memory:!!preview,shownAt:shownAt??null}))};v.allies=['assassino','detetive'].includes(me.role)?r.players.filter(p=>p.role===me.role).map(p=>({id:p.id,name:p.name})):[];if(me.role==='detetive')v.investigations=r.investigations;}
+ return v;
+}

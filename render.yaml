@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: cidade-dorme
+    runtime: node
+    plan: starter
+    buildCommand: node --test
+    startCommand: node server.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: TEACHER_KEY
+        sync: false
+    disk:
+      name: cidade-dados
+      mountPath: /var/data
+      sizeGB: 1
