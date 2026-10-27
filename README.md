@@ -59,19 +59,19 @@ Crie o arquivo de ambiente fora do repositório com `TEACHER_KEY=uma-senha-longa
 - Alunos: entrada sem conta, reconexão, papel privado, aliados de assassinos e detetives, habilidades, desafios, votação, causas privadas da própria morte e resultado.
 - Telão: fases, relógio, participantes, presos, mortes, votação e vitória; sem ações ou papéis secretos.
 - Servidor: sorteio criptográfico, estado persistido antes de transmitir, validação de fase e prazo, impedimento de ações/votos repetidos e recuperação após reinício.
-- Desafios: 16 geradores/modelos em 10 categorias; números e símbolos variam. As tarefas de uma pessoa na mesma noite usam categorias diferentes. Respostas e tentativas são verificadas no servidor. Os modelos fixos podem reaparecer em noites posteriores; não é um banco curricular ilimitado.
+- Desafios: 21 geradores/modelos em 10 categorias; números e símbolos variam. As tarefas de uma pessoa na mesma noite usam categorias diferentes. Respostas e tentativas são verificadas no servidor. Os modelos fixos podem reaparecer em noites posteriores; não é um banco curricular ilimitado.
 
 ## Decisões de regras
 
-1. Primeira noite: sem detetives. Nas seguintes, cada detetive tem cronômetro individual, na ordem de entrada na sala. Se estiver morto, preso ou suspenso, seu turno é pulado. Um prisioneiro pendente é libertado quando não há possibilidade de decisão do detetive.
-2. O detetive tem até o fim de seu cronômetro para decidir e agir. Libertar não reinicia o tempo. Executar encerra o turno. Prender ou investigar também encerra o turno e libera o próximo detetive imediatamente. Prisões têm efeito imediato.
+1. Primeira noite: sem detetives. Nas seguintes, todos os detetives agem simultaneamente durante um único cronômetro compartilhado. Detetives mortos, presos ou suspensos não podem agir. Prisões têm efeito imediato. Ao fim da fase, prisioneiros sem decisão são libertados.
+2. O tempo é comum a todos os detetives. Cada um pode escolher uma ação; libertar permite depois investigar ou prender dentro do mesmo cronômetro. Executar encerra somente as ações daquele detetive.
 3. Anjos e assassinos agem simultaneamente dentro da respectiva fase, com uma confirmação individual por noite. As fases duram o tempo configurado mesmo sem personagens ativos, deixando tempo para desafios; o professor pode avançá-las.
 4. A proibição opcional de proteção repetida vale apenas para noites consecutivas. Uma noite sem proteger permite voltar ao mesmo alvo depois.
 5. Assassinatos são resolvidos primeiro, com alvos repetidos deduplicados. Depois, sorteia-se uma pessoa entre os sobreviventes para a única verificação de morte natural. Portanto, uma vítima de assassinato não recebe uma segunda causa de morte.
 6. A causa é privada. Mortes e execuções são anunciadas sem causa. A identidade do detetive que prende não é anunciada.
-7. Risco individual: `base × (1 - redução/100) ^ tarefas_corretas`. Até três tarefas e redução de 25% por tarefa são os padrões. Presos podem realizar desafios. Mortos não podem. As tarefas só ficam disponíveis nas fases noturnas de habilidades.
+7. Risco individual: `base × (1 - redução/100) ^ tarefas_corretas`. Cinco tarefas e redução de 25% por tarefa são os novos padrões. Presos podem realizar desafios. Mortos não podem. As tarefas só ficam disponíveis nas fases noturnas de habilidades. Desafios de múltipla escolha e de sequência de cores complementam as respostas digitadas.
 8. Memória: o servidor só envia a sequência quando o aluno pede para vê-la, por sete segundos. A resposta só é aceita depois. Como em qualquer jogo no navegador, não é possível impedir que alguém fotografe ou registre os números exibidos; a resposta esperada nunca é enviada no estado dos desafios.
-9. Voto é definitivo após confirmar. Cada vivo livre pode votar em qualquer vivo livre, inclusive em si, ou abster-se. Pluralidade elimina; empate ou nenhum voto não elimina; não há segundo turno.
+9. Voto é definitivo após confirmar. Cada vivo livre pode votar em qualquer vivo livre, inclusive em si, ou abster-se. O professor pode abrir os votos ou mantê-los secretos. Pluralidade elimina; empate ou nenhum voto não elimina; não há segundo turno.
 10. Joker tem prioridade ao ser eliminado pela votação. Cidade vence quando não restam assassinos vivos. Assassinos só vencem automaticamente quando todos os vivos são assassinos. Nenhuma igualdade numérica basta. O professor pode definir um resultado manualmente.
 11. Regras são configuradas e salvas no lobby. Para mudar a composição depois do início, crie outra partida. Remoção de participantes só existe no lobby, para evitar alterar as regras em andamento.
 12. Se o servidor reiniciar, a partida é recuperada **pausada**, com o tempo restante preservado ou zero se já expirado. O professor precisa retomar. Isso evita que várias noites ocorram sem os alunos durante uma indisponibilidade.
@@ -110,3 +110,4 @@ O telão é acessível a quem conhece o código, como o lobby. Não exponha o c�
 - Depois da atividade, o professor pode excluir definitivamente a sala pelo painel, invalidando suas sessões.
 - Para backup simples, pare o serviço e copie o diretório de dados inteiro. Não copie apenas o `.sqlite` enquanto há gravações, pois o modo WAL usa arquivos auxiliares. Em produção, configure backup apropriado do SQLite e teste a restauração antes de depender dele.
 - Guarde a chave de recuperação de cada sala em local privado. Perder o cookie administrativo e essa chave exige intervenção do operador do banco.
+
