@@ -3,13 +3,12 @@ import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
+import {randomBytes,createHash} from 'node:crypto';
 import * as game from './engine.mjs';
 const root=dirname(fileURLToPath(import.meta.url));
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const token=()=>randomBytes(32).toString('base64url');
-export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_DIR,'cidade.sqlite'):resolve(root,'data/cidade.sqlite'),teacherKey=process.env.TEACHER_KEY,production=process.env.NODE_ENV==='production'}={}){
- if(production&&!teacherKey)throw new Error('Configure TEACHER_KEY para permitir a criação de salas em produção.');
+export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_DIR,'cidade.sqlite'):resolve(root,'data/cidade.sqlite'),production=process.env.NODE_ENV==='production'}={}){
  if(dbPath!==':memory:')mkdirSync(dirname(dbPath),{recursive:true});
  const db=new DatabaseSync(dbPath);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS rooms (code TEXT PRIMARY KEY, state TEXT NOT NULL)');
  const rooms=new Map(),peers=new Map(),rates=new Map();
@@ -32,9 +31,9 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  const ip=req.socket.remoteAddress;const rateKey=`${ip}:${req.method==='GET'?'read':'write'}`;const rate=rates.get(rateKey)||{at:Date.now(),count:0};if(Date.now()-rate.at>60000){rate.at=Date.now();rate.count=0;}rate.count++;rates.set(rateKey,rate);game.ensure(rate.count<(req.method==='GET'?600:6000),'Muitas requisições. Aguarde um minuto.');
  if(req.method!=='GET'){const origin=req.headers.origin;if(origin)game.ensure(new URL(origin).host===req.headers.host,'Origem inválida.');game.ensure((req.headers['content-type']||'').startsWith('application/json'),'Envie JSON.');}
  if(url.pathname==='/api/rooms'&&req.method==='POST'){
- const b=await body(req);if(teacherKey){const a=Buffer.from(hash(String(b.teacherKey||''))),z=Buffer.from(hash(teacherKey));game.ensure(timingSafeEqual(a,z),'Chave do professor incorreta.');}game.ensure(rooms.size<500,'Limite de salas atingido. Exclua salas antigas.');
+ const b=await body(req);game.ensure(rooms.size<500,'Limite de salas atingido. Exclua salas antigas.');
  let code;do{code=randomBytes(4).toString('hex').slice(0,6).toUpperCase();}while(rooms.has(code));const r=game.room(b.config);const key=token();r.sessions={[hash(key)]:{kind:'admin'}};rooms.set(code,r);save(code,r);setCookie(res,code,'admin',key);return json(res,{code,recoveryKey:key});}
- const match=url.pathname.match(/^\/api\/rooms\/([A-F0-9]{6})(?:\/(\w+))?$/);game.ensure(match,'Endereço inválido.');const[,code,action='state']=match;game.ensure(rooms.has(code),'Sala não encontrada.');const kind=url.searchParams.get('kind')||'student';
+ const match=url.pathname.match(/^\/api\/rooms\/([A-F0-9]{6})(?:\/([\w-]+))?$/);game.ensure(match,'Endereço inválido.');const[,code,action='state']=match;game.ensure(rooms.has(code),'Sala não encontrada.');const kind=url.searchParams.get('kind')||'student';
  if(req.method==='POST'&&action==='recover'){const b=await body(req);game.ensure(rooms.get(code).sessions[hash(String(b.key))]?.kind==='admin','Chave de recuperação inválida.');setCookie(res,code,'admin',b.key);return json(res,{ok:true});}
  if(req.method==='POST'&&action==='join'){const b=await body(req);const key=token();const p=mutate(code,r=>{const p=game.join(r,b.name);r.sessions[hash(key)]={kind:'student',playerId:p.id};return p;});setCookie(res,code,'student',key);return json(res,{id:p.id});}
  const identity=auth(req,code,kind);
@@ -48,6 +47,7 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  game.ensure(identity.kind==='admin','Acesso exclusivo do professor.');
  if(action==='configure'){game.ensure(r.phase==='lobby','Configure antes de iniciar.');r.config=game.config(b.config);}
  else if(action==='start')game.start(r);
+ else if(action==='new-game')game.restart(r);
  else if(action==='pause'){game.ensure(r.deadline&&!r.paused);r.remaining=Math.max(0,r.deadline-Date.now());r.deadline=null;r.paused=true;game.log(r,'Partida pausada.');}
  else if(action==='resume'){game.ensure(r.paused);r.deadline=Date.now()+r.remaining;r.paused=false;game.log(r,'Partida retomada.');}
  else if(action==='advance'){game.ensure(!r.paused,'Retome a partida antes de avançar.');game.advance(r);}
@@ -63,3 +63,4 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  return {server,close:async()=>{clearInterval(timer);clearInterval(heartbeat);for(const clients of peers.values())for(const {res}of clients)res.end();await new Promise(resolve=>server.close(resolve));db.close();}};
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){const app=createApp();app.server.listen(Number(process.env.PORT)||3000,'0.0.0.0',()=>console.log(`Cidade Dorme ouvindo na porta ${Number(process.env.PORT)||3000}`));for(const signal of ['SIGINT','SIGTERM'])process.on(signal,async()=>{await app.close();process.exit(0);});}
+
