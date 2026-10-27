@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from 'node:crypto';
-const item = (category, text, answer) => ({id:randomUUID(), category, text, answer:String(answer)});
+const item = (category, text, answer, extra={}) => ({id:randomUUID(), category, text, answer:String(answer),...extra});
 export function normalize(s) { return String(s).normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase().replace(/\s+/g,' '); }
 export function challenge() {
  const a=randomInt(3,20), b=randomInt(2,10), n=randomInt(2,7), k=randomInt(1,20);
@@ -20,5 +20,11 @@ export function challenge() {
  ()=>item('Sequências',`Complete: 1, 4, 9, 16, 25, ?`,36),
  ()=>item('Lógica',`Se hoje é terça-feira, que dia será daqui a ${7*n+2} dias?`,'quinta-feira'),
  ()=>{const sequence=Array.from({length:5},()=>randomInt(1,10)).join(' ');return {...item('Memória','Memorize os cinco números. Depois de 7 segundos, escreva-os na mesma ordem, separados por espaço.',sequence),preview:sequence,hideAfter:7000}},
+ ()=>{const answer=a*b+n, choices=[answer,answer+2,Math.max(0,answer-3),answer+5].sort((x,y)=>x-y);return item('Matemática','Resolva a conta e toque na resposta: '+a+' × '+b+' + '+n,answer,{kind:'choice',choices:choices.map(String)})},
+ ()=>{const answer=['círculo','triângulo','quadrado'][randomInt(3)], choices=['círculo','triângulo','quadrado'].sort(()=>randomInt(2)?1:-1);return item('Atenção','Toque no símbolo que aparece mais vezes: ◆ ◆ ◇ ◆ ◇', '◆',{kind:'choice',choices:['◆','◇']})},
+ ()=>{const sequence=Array.from({length:4},()=>['azul','vermelho','verde'][randomInt(3)]);return {...item('Memória','Observe a sequência. Depois de ocultá-la, toque nas cores na mesma ordem.',sequence.join(' '),{kind:'sequence',choices:['azul','vermelho','verde']}),preview:sequence.join(' → '),hideAfter:4000}},
+ ()=>{const answer=['gato','peixe','pássaro'][randomInt(3)], pairs=['gato—miau','peixe—nada','pássaro—voa'];return item('Associações','Escolha a associação correta: '+pairs.join(' · '),pairs[0],{kind:'choice',choices:pairs})},
+ ()=>{const choices=['▲','●','■','◆','★','✚'];return item('Reconhecimento','Qual símbolo está faltando na sequência? ▲ ● ▲ ● ▲ ?',choices[1],{kind:'choice',choices})},
  ];return variants[randomInt(variants.length)]();
 }
+
