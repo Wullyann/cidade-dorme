@@ -26,14 +26,14 @@ O arquivo `render.yaml` prepara um serviço Node, verificação de saúde e disc
 
 1. Coloque **o conteúdo desta pasta** na raiz de um repositório Git seu. Não envie `data/`, `.qa/`, chaves ou arquivos `.env`.
 2. No Render, conecte esse repositório e escolha **New → Blueprint** para usar `render.yaml`.
-3. Quando solicitado, defina `TEACHER_KEY`: uma senha longa que só o professor conhece. É a chave para criar novas salas; cada sala também terá sua própria chave de recuperação.
+3. Não é preciso configurar chave de criação. Qualquer pessoa pode abrir o painel inicial e criar uma sala; o acesso de professor à sala fica associado ao navegador que a criou. Cada sala também gera uma chave de recuperação para abrir o painel em outro navegador.
 4. Verifique o serviço e o disco apresentados e confirme a implantação na plataforma.
 5. Aguarde a verificação de `/health` e abra a URL HTTPS fornecida pelo Render.
 6. Crie uma sala pela URL HTTPS e compartilhe o link gerado com os alunos.
 
 Se publicar esta pasta como subdiretório de outro repositório, informe esse caminho como Root Directory e ajuste o caminho do Blueprint.
 
-Configuração manual equivalente: runtime Node 24; build `node --test`; start `node server.mjs`; `NODE_ENV=production`; `DATA_DIR=/var/data`; `TEACHER_KEY` definida; disco montado em `/var/data`; health check `/health`. `PORT` é fornecida pela hospedagem.
+Configuração manual equivalente: runtime Node 24; build `node --test`; start `node server.mjs`; `NODE_ENV=production`; `DATA_DIR=/var/data`; disco montado em `/var/data`; health check `/health`. `PORT` é fornecida pela hospedagem.
 
 Use **uma instância**. Um banco SQLite local não pode ser compartilhado entre réplicas independentes. O disco precisa ser persistente: o sistema de arquivos padrão da hospedagem é temporário. O cookie em produção exige HTTPS. O acesso dos alunos é pelo link/código do jogo, sem login no provedor.
 
@@ -51,11 +51,11 @@ docker volume create cidade-dados
 docker run --name cidade-dorme --restart unless-stopped -p 3000:3000 --env-file /caminho/seguro/cidade.env -v cidade-dados:/data cidade-dorme
 ```
 
-Crie o arquivo de ambiente fora do repositório com `TEACHER_KEY=uma-senha-longa`. O Dockerfile já define `NODE_ENV=production` e `DATA_DIR=/data`. Coloque o serviço atrás de HTTPS (Caddy, Nginx ou proxy da hospedagem). Preserve o cabeçalho Host e desative buffering da rota `/api/rooms/*/events`. Conexões SSE recebem heartbeat a cada 15 segundos; configure o proxy para aceitar conexões persistentes. A imagem usa a série oficial `node:24-bookworm-slim`.
+O Dockerfile já define `NODE_ENV=production` e `DATA_DIR=/data`. Coloque o serviço atrás de HTTPS (Caddy, Nginx ou proxy da hospedagem). Preserve o cabeçalho Host e desative buffering da rota `/api/rooms/*/events`. Conexões SSE recebem heartbeat a cada 15 segundos; configure o proxy para aceitar conexões persistentes. A imagem usa a série oficial `node:24-bookworm-slim`.
 
 ## O que está implementado
 
-- Professor: criação protegida por chave em produção, configuração, link/código, recuperação de acesso, remoção de entradas no lobby, sorteio, pausa, retomada, avanço, encerramento, papéis, ações secretas, progresso dos desafios e relatório JSON.
+- Professor: criação de salas sem chave global, recuperação do painel por chave individual da sala, configuração, link/código, remoção de entradas no lobby, sorteio, pausa, retomada, avanço, encerramento, relatório JSON e botão **Nova partida** para sortear os mesmos alunos novamente após o fim.
 - Alunos: entrada sem conta, reconexão, papel privado, aliados de assassinos e detetives, habilidades, desafios, votação, causas privadas da própria morte e resultado.
 - Telão: fases, relógio, participantes, presos, mortes, votação e vitória; sem ações ou papéis secretos.
 - Servidor: sorteio criptográfico, estado persistido antes de transmitir, validação de fase e prazo, impedimento de ações/votos repetidos e recuperação após reinício.
