@@ -23,7 +23,7 @@ export function challenge() {
  ()=>{const answer=a*b+n, choices=[answer,answer+2,Math.max(0,answer-3),answer+5].sort((x,y)=>x-y);return item('Matemática','Resolva a conta e toque na resposta: '+a+' × '+b+' + '+n,answer,{kind:'choice',choices:choices.map(String)})},
  ()=>{const answer=['círculo','triângulo','quadrado'][randomInt(3)], choices=['círculo','triângulo','quadrado'].sort(()=>randomInt(2)?1:-1);return item('Atenção','Toque no símbolo que aparece mais vezes: ◆ ◆ ◇ ◆ ◇', '◆',{kind:'choice',choices:['◆','◇']})},
  ()=>{const sequence=Array.from({length:4},()=>['azul','vermelho','verde'][randomInt(3)]);return {...item('Memória','Observe a sequência. Depois de ocultá-la, toque nas cores na mesma ordem.',sequence.join(' '),{kind:'sequence',choices:['azul','vermelho','verde']}),preview:sequence.join(' → '),hideAfter:4000}},
- ()=>{const answer=['gato','peixe','pássaro'][randomInt(3)], pairs=['gato—miau','peixe—nada','pássaro—voa'];return item('Associações','Escolha a associação correta: '+pairs.join(' · '),pairs[0],{kind:'choice',choices:pairs})},
+ ()=>{const pairs=[['gato','miau'],['peixe','nada'],['pássaro','voa']],correct=randomInt(pairs.length),choices=pairs.map(([animal,action],i)=>animal+'—'+(i===correct?action:pairs[(i+1)%pairs.length][1]));return item('Associações','Escolha a única associação correta.',choices[correct],{kind:'choice',choices})},
  ()=>{const choices=['▲','●','■','◆','★','✚'];return item('Reconhecimento','Qual símbolo está faltando na sequência? ▲ ● ▲ ● ▲ ?',choices[1],{kind:'choice',choices})},
  ];return variants[randomInt(variants.length)]();
 }
