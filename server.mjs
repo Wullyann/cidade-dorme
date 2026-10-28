@@ -28,7 +28,7 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  try{
  const url=new URL(req.url,'http://localhost');
  if(req.method==='GET'&&url.pathname==='/health')return json(res,{ok:true});
- if(!url.pathname.startsWith('/api/')){game.ensure(req.method==='GET');const files={'/':'index.html','/app.js':'app.js','/style.css':'style.css'};const file=files[url.pathname];if(!file)return json(res,{error:'Não encontrado.'},404);res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(readFileSync(resolve(root,'public',file)));}
+ if(!url.pathname.startsWith('/api/')){game.ensure(req.method==='GET');const files={'/':'index.html','/app.js':'app.js','/minigames.js':'minigames.js','/style.css':'style.css'};const file=files[url.pathname];if(!file)return json(res,{error:'Não encontrado.'},404);res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(readFileSync(resolve(root,'public',file)));}
  const ip=req.socket.remoteAddress,traffic=req.method==='GET'?'read':'write';rateLimit(`network:${ip}:${traffic}`,30000);
  if(req.method!=='GET'){const origin=req.headers.origin;if(origin)game.ensure(new URL(origin).host===req.headers.host,'Origem inválida.');game.ensure((req.headers['content-type']||'').startsWith('application/json'),'Envie JSON.');}
  if(url.pathname==='/api/rooms'&&req.method==='POST'){
@@ -46,7 +46,7 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  game.ensure(req.method==='POST','Método inválido.');const b=await body(req);
  if(action==='delete'){game.ensure(identity.kind==='admin');for(const p of peers.get(code)??[])p.res.end();peers.delete(code);rooms.delete(code);db.prepare('DELETE FROM rooms WHERE code=?').run(code);return json(res,{ok:true});}
  const result=mutate(code,r=>{
- if(action==='act'){game.ensure(identity.kind==='student');game.ensure(b.phaseId===r.phaseId,'A fase mudou. Tente novamente.');return game.act(r,r.players.find(p=>p.id===identity.playerId),b.type,b.data);}
+ if(action==='act'){game.ensure(identity.kind==='student');game.ensure(b.phaseId===r.phaseId,'A fase mudou. Tente novamente.');const result=game.act(r,r.players.find(p=>p.id===identity.playerId),b.type,b.data);game.progress(r);return result;}
  game.ensure(identity.kind==='admin','Acesso exclusivo do professor.');
  if(action==='configure'){game.ensure(r.phase==='lobby','Configure antes de iniciar.');r.config=game.config(b.config);}
  else if(action==='start')game.start(r);
@@ -60,7 +60,7 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  }catch(e){if(!res.headersSent)json(res,{error:e.message},400);else res.end();}
  });
  server.requestTimeout=15000;server.headersTimeout=10000;
- const timer=setInterval(()=>{for(const [code,r]of rooms){if(!r.paused&&r.deadline&&(game.emptyNightPhase(r)||Date.now()>=r.deadline)){try{mutate(code,r=>game.tick(r));}catch(e){console.error('Falha no turno',e.message);}}}},250);
+ const timer=setInterval(()=>{for(const [code,r]of rooms){if(!r.paused&&r.deadline&&(game.completedNightPhase(r)||Date.now()>=r.deadline)){try{mutate(code,r=>game.tick(r));}catch(e){console.error('Falha no turno',e.message);}}}},250);
  const heartbeat=setInterval(()=>{for(const clients of peers.values())for(const {res}of clients)res.write(': heartbeat\n\n');for(const [key,value]of rates)if(Date.now()-value.at>60000)rates.delete(key);},15000);
  timer.unref();heartbeat.unref();
  return {server,close:async()=>{clearInterval(timer);clearInterval(heartbeat);for(const clients of peers.values())for(const {res}of clients)res.end();await new Promise(resolve=>server.close(resolve));db.close();}};
