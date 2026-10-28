@@ -12,6 +12,7 @@ function assignTasks(count) {
 export const defaults={killers:3,detectives:2,angels:2,jokers:1,detectiveSeconds:45,angelSeconds:30,killerSeconds:30,dawnSeconds:12,debateSeconds:120,voteSeconds:45,natural:10,investigateMin:3,investigateMax:5,tasks:5,reduction:25,attempts:2,reveal:false,noRepeatProtection:true,secretVote:true};
 export function ensure(test,message='Ação não permitida.') {if(!test)throw new Error(message);}
 export function config(input={}) {
+ ensure(input&&typeof input==='object'&&!Array.isArray(input),'Configuração inválida.');
  const c={...defaults};
  for(const key of Object.keys(c))if(key in input){if(typeof c[key]==='boolean'){ensure(typeof input[key]==='boolean','Configuração inválida.');c[key]=input[key];}else{ensure(Number.isFinite(input[key])&&Number.isInteger(input[key]),'Use números inteiros.');c[key]=input[key];}}
  for(const k of ['killers','detectives','angels','jokers'])ensure(c[k]>=0&&c[k]<=35,'Quantidade de personagens inválida.');
@@ -21,7 +22,7 @@ export function config(input={}) {
  ensure(c.investigateMin>=1&&c.investigateMax>=c.investigateMin&&c.investigateMax<=35,'Grupo de investigação inválido.');
  ensure(c.tasks>=0&&c.tasks<=10&&c.attempts>=1&&c.attempts<=10,'Tarefas ou tentativas inválidas.');return c;
 }
-export function room(settings={}) {return {config:config(settings),players:[],phase:'lobby',night:0,events:[],investigations:[],votes:{},attacks:{},protections:{},winner:null,paused:false,deadline:null,revision:0};}
+export function room(settings={}) {return {config:config(settings),players:[],phase:'lobby',phaseId:null,night:0,events:[],investigations:[],votes:{},voteResult:null,attacks:{},protections:{},detectiveActions:{},detectiveQueue:[],detectiveIndex:0,pendingDead:[],winner:null,paused:false,deadline:null,remaining:null,revision:0};}
 export function log(r,text,secret=false){r.events.push({at:Date.now(),night:r.night,text,secret});}
 export function join(r,name){ensure(r.phase==='lobby','A partida já começou.');ensure(r.players.length<40,'Sala cheia.');ensure(typeof name==='string'&&name.trim().length>=2&&name.trim().length<=24,'Nome: de 2 a 24 caracteres.');ensure(!r.players.some(p=>normalize(p.name)===normalize(name)),'Este nome já está na sala. Use outro apelido ou retorne pelo mesmo navegador.');const p={id:randomUUID(),name:name.trim(),alive:true,role:null,prisoner:null,jailedBy:null,skipNight:0,tasks:[],cause:null,lastProtected:null};r.players.push(p);return p;}
 export function free(r,p){if(p.jailedBy){const d=r.players.find(x=>x.id===p.jailedBy);if(d)d.prisoner=null;p.jailedBy=null;log(r,`${p.name} foi libertado.`);}}
