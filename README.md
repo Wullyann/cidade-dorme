@@ -63,9 +63,9 @@ O Dockerfile já define `NODE_ENV=production` e `DATA_DIR=/data`. Coloque o serv
 
 ## Decisões de regras
 
-1. Primeira noite: sem detetives. Nas seguintes, todos os detetives agem simultaneamente durante um único cronômetro compartilhado. Detetives mortos, presos ou suspensos não podem agir. Prisões têm efeito imediato. Ao fim da fase, prisioneiros sem decisão são libertados.
+1. Primeira noite: sem detetives. Nas seguintes, todos os detetives agem simultaneamente durante um único cronômetro compartilhado. Detetives mortos, presos ou suspensos não podem agir. Prisões têm efeito imediato. Ao fim da fase, prisioneiros de noites anteriores sem decisão são libertados; uma prisão feita nesta noite continua valendo.
 2. O tempo é comum a todos os detetives. Cada um pode escolher uma ação; libertar permite depois investigar ou prender dentro do mesmo cronômetro. Executar encerra somente as ações daquele detetive.
-3. Anjos e assassinos agem simultaneamente dentro da respectiva fase, com uma confirmação individual por noite. As fases duram o tempo configurado mesmo sem personagens ativos, deixando tempo para desafios; o professor pode avançá-las.
+3. Anjos e assassinos agem simultaneamente dentro da respectiva fase, com uma confirmação individual por noite. Fases de habilidades sem personagens vivos e livres aptos a agir são puladas automaticamente, inclusive detetives suspensos. Nas fases com personagens disponíveis, o cronômetro continua até o fim mesmo que todos já tenham agido; o professor pode avançá-las. Se todos os assassinos estiverem presos, a noite ainda resolve a morte natural antes do amanhecer.
 4. A proibição opcional de proteção repetida vale apenas para noites consecutivas. Uma noite sem proteger permite voltar ao mesmo alvo depois.
 5. Assassinatos são resolvidos primeiro, com alvos repetidos deduplicados. Depois, sorteia-se uma pessoa entre os sobreviventes para a única verificação de morte natural. Portanto, uma vítima de assassinato não recebe uma segunda causa de morte.
 6. A causa é privada. Mortes e execuções são anunciadas sem causa. A identidade do detetive que prende não é anunciada.
