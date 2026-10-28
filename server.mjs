@@ -57,7 +57,7 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  }catch(e){if(!res.headersSent)json(res,{error:e.message},400);else res.end();}
  });
  server.requestTimeout=15000;server.headersTimeout=10000;
- const timer=setInterval(()=>{for(const [code,r]of rooms){if(!r.paused&&r.deadline&&Date.now()>=r.deadline){try{mutate(code,r=>game.tick(r));}catch(e){console.error('Falha no turno',e.message);}}}},250);
+ const timer=setInterval(()=>{for(const [code,r]of rooms){if(!r.paused&&r.deadline&&(game.emptyNightPhase(r)||Date.now()>=r.deadline)){try{mutate(code,r=>game.tick(r));}catch(e){console.error('Falha no turno',e.message);}}}},250);
  const heartbeat=setInterval(()=>{for(const clients of peers.values())for(const {res}of clients)res.write(': heartbeat\n\n');for(const [key,value]of rates)if(Date.now()-value.at>60000)rates.delete(key);},15000);
  timer.unref();heartbeat.unref();
  return {server,close:async()=>{clearInterval(timer);clearInterval(heartbeat);for(const clients of peers.values())for(const {res}of clients)res.end();await new Promise(resolve=>server.close(resolve));db.close();}};
