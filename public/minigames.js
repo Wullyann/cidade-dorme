@@ -1,0 +1,69 @@
+/* Pointer, touch and keyboard interactions for the night tasks. */
+window.MiniGames=(()=>{
+ const states=new Map(),kinds=['order','wires','calibrate','rotate','maze','clean','timing','lights'];
+ const labels={order:'Arrastar e organizar',wires:'Conectar fios',calibrate:'Regular controles',rotate:'Girar mecanismos',maze:'Desenhar um caminho',clean:'Limpar com o dedo',timing:'Parar no momento certo',lights:'Resolver o painel'};
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const arrow=['↑','→','↓','←'];let context,root,drag=null;
+ function get(t){if(!states.has(t.id))states.set(t.id,{order:t.parts?.map(p=>p.id),wires:{},selected:null,gauges:t.gauges?.map(g=>g.start),dials:t.dials?.map(d=>d.start),path:t.start?[[...t.start]]:[],cleared:new Set(),lights:t.initial?[...t.initial]:[],moves:[]});return states.get(t.id);}
+ function value(t){const s=get(t);switch(t.kind){case 'order':return s.order.join(' ');case 'wires':return Object.entries(s.wires).sort(([a],[b])=>a.localeCompare(b)).map(([a,b])=>a+'='+b).join(';');case 'calibrate':return s.gauges.join(' ');case 'rotate':return s.dials.join(' ');case 'maze':return s.path.map(p=>p.join(',')).join('|');case 'clean':return [...s.cleared].sort().join(' ');case 'lights':return s.moves.join(' ');case 'timing':return 'stop';default:return '';}}
+ function controls(t){const s=get(t);
+  if(t.kind==='order')return `<ol class="sort-items interaction-board">${s.order.map((id,i)=>`<li data-sort-id="${id}"><button type="button" data-sort-handle="${id}" aria-label="Arrastar ${esc(t.parts.find(p=>p.id===id).label)}">⠿ ${esc(t.parts.find(p=>p.id===id).label)}</button><span><button type="button" data-sort-up="${id}" ${i===0?'disabled':''} aria-label="Mover para cima">↑</button><button type="button" data-sort-down="${id}" ${i===s.order.length-1?'disabled':''} aria-label="Mover para baixo">↓</button></span></li>`).join('')}</ol>`;
+  if(t.kind==='wires')return `<div class="wiring-board interaction-board"><svg class="wire-lines" aria-hidden="true"></svg><div>${t.left.map(p=>`<button type="button" data-wire-left="${p.id}" class="wire-terminal ${s.selected===p.id?'selected':''} ${s.wires[p.id]?'connected':''}">${esc(p.label)} <span>●</span></button>`).join('')}</div><div>${t.right.map(p=>`<button type="button" data-wire-right="${p.id}" class="wire-terminal ${Object.values(s.wires).includes(p.id)?'connected':''}"><span>●</span> ${esc(p.label)}</button>`).join('')}</div></div><small>${Object.keys(s.wires).length}/${t.left.length} conexões</small>`;
+  if(t.kind==='calibrate')return t.gauges.map((g,i)=>`<label class="gauge">${esc(g.label)} · ALVO <b>${g.target}</b><input type="range" name="gauge-${g.id}" data-gauge="${i}" min="${g.min}" max="${g.max}" step="${g.step}" value="${s.gauges[i]}" aria-label="${esc(g.label)}"><output data-gauge-output="${i}">${s.gauges[i]}</output></label>`).join('');
+  if(t.kind==='rotate')return `<div class="dial-grid">${t.dials.map((d,i)=>`<div><small>${esc(d.label)} · alvo ${arrow[d.target]}</small><button type="button" class="dial" data-dial="${i}" aria-label="Girar ${esc(d.label)}; atual ${arrow[s.dials[i]]}; alvo ${arrow[d.target]}"><span data-dial-angle="${s.dials[i]*90}">↑</span></button></div>`).join('')}</div>`;
+  if(t.kind==='maze'){const current=s.path.at(-1),trace=new Set(s.path.map(p=>p.join(',')));return `<div class="maze-board interaction-board" data-maze-size="${t.grid.length}" tabindex="0" aria-label="Labirinto: use as setas ou desenhe o caminho">${t.grid.flatMap((row,r)=>[...row].map((cell,c)=>cell==='#'?'<span class="maze-wall" aria-hidden="true"></span>':`<button type="button" data-maze="${r},${c}" class="maze-cell ${trace.has(r+','+c)?'traced':''} ${current[0]===r&&current[1]===c?'current':''}" aria-label="Casa ${r},${c}${t.goal[0]===r&&t.goal[1]===c?'; saída':''}">${current[0]===r&&current[1]===c?'●':t.goal[0]===r&&t.goal[1]===c?'⚑':''}</button>`)).join('')}</div><div class="maze-arrows"><button type="button" data-maze-move="-1,0" aria-label="Mover para cima">↑</button><button type="button" data-maze-move="0,-1" aria-label="Mover para esquerda">←</button><button type="button" data-maze-move="1,0" aria-label="Mover para baixo">↓</button><button type="button" data-maze-move="0,1" aria-label="Mover para direita">→</button></div>`;}
+  if(t.kind==='clean')return `<div class="clean-board interaction-board" aria-label="Passe o dedo ou mouse para limpar"><div class="clean-grid" aria-hidden="true">✦ PAINEL DE INSPEÇÃO ✦</div>${t.spots.map(p=>`<button type="button" data-scrub="${p.id}" class="smudge ${s.cleared.has(p.id)?'cleaned':''}" data-x="${p.x}" data-y="${p.y}" data-radius="${p.r}" aria-label="Limpar mancha ${Number(p.id.slice(1))+1}" ${s.cleared.has(p.id)?'disabled':''}></button>`).join('')}</div><small class="clean-progress">${s.cleared.size}/${t.spots.length} manchas limpas</small>`;
+  if(t.kind==='lights')return `<div class="lights-board" aria-label="Apague todas as luzes">${s.lights.map((lit,i)=>`<button type="button" data-light="${i}" class="light ${lit?'lit':''}" aria-pressed="${lit}" aria-label="Interruptor ${i+1}, ${lit?'aceso':'apagado'}">${lit?'✦':'·'}</button>`).join('')}</div><small>${s.lights.filter(Boolean).length} luz(es) acesa(s) · ${s.moves.length} movimentos</small>`;
+  if(t.kind==='timing')return t.startedAt?`<div class="timing-track" aria-label="Pare o ponteiro na faixa verde"><div class="timing-zone" data-zone-start="${t.targetStart/t.period*100}" data-zone-width="${(t.targetEnd-t.targetStart)/t.period*100}"></div><div class="timing-pointer"></div></div><small>Pressione Parar na faixa verde.</small>`:'<button type="button" data-timing-start>Iniciar sinal</button>';
+  return '';
+ }
+ function render(t){if(!kinds.includes(t.kind))return null;const ready=t.kind!=='timing'||!!t.startedAt;return `<div class="mini-game" data-game-kind="${t.kind}">${controls(t)}</div><input name="answer" type="hidden" value="${esc(value(t))}">${t.kind!=='timing'?'<button type="button" class="ghost" data-game-reset>Recomeçar tarefa</button>':''}${ready?`<button class="primary game-confirm">${t.kind==='timing'?'Parar':'Concluir tarefa'}</button>`:''}`;}
+ function formFor(id){return [...root.querySelectorAll('.task-form')].find(f=>f.dataset.id===id);}
+ function sync(form,t,redraw=true){if(!form)return;const board=form.querySelector('.mini-game');if(!board)return;if(redraw)board.innerHTML=controls(t);form.elements.answer.value=value(t);layout(form,t);}
+ function layout(form,t){for(const e of form.querySelectorAll('[data-dial-angle]'))e.style.transform='rotate('+e.dataset.dialAngle+'deg)';for(const e of form.querySelectorAll('[data-maze-size]'))e.style.setProperty('--maze-size',e.dataset.mazeSize);for(const e of form.querySelectorAll('[data-radius]')){e.style.left=e.dataset.x+'%';e.style.top=e.dataset.y+'%';e.style.setProperty('--spot-size',Number(e.dataset.radius)*2+'%');}for(const e of form.querySelectorAll('[data-zone-start]')){e.style.left=e.dataset.zoneStart+'%';e.style.width=e.dataset.zoneWidth+'%';}if(t.kind!=='wires')return;const board=form.querySelector('.wiring-board'),svg=board?.querySelector('svg');if(!svg||!board.clientWidth)return;const bounds=board.getBoundingClientRect();svg.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);svg.innerHTML=Object.entries(get(t).wires).map(([left,right],i)=>{const a=board.querySelector(`[data-wire-left="${left}"]`)?.getBoundingClientRect(),b=board.querySelector(`[data-wire-right="${right}"]`)?.getBoundingClientRect();if(!a||!b)return '';return `<line x1="${a.right-bounds.left-12}" y1="${a.top+a.height/2-bounds.top}" x2="${b.left-bounds.left+12}" y2="${b.top+b.height/2-bounds.top}" stroke="${['#72d8dd','#efbe72','#b9a0ff','#f294b8'][i%4]}" stroke-width="3"/>`;}).join('');}
+ function taskOf(form){return context.tasks().find(t=>t.id===form?.dataset.id);}
+ function connect(t,right){const s=get(t);if(!s.selected)return;for(const left of Object.keys(s.wires))if(s.wires[left]===right)delete s.wires[left];s.wires[s.selected]=right;s.selected=null;}
+ function move(t,r,c){const s=get(t),last=s.path.at(-1);if(t.grid[r]?.[c]!=='.'||Math.abs(last[0]-r)+Math.abs(last[1]-c)!==1)return;const visited=s.path.findIndex(p=>p[0]===r&&p[1]===c);if(visited>=0)s.path=s.path.slice(0,visited+1);else if(s.path.length<400)s.path.push([r,c]);}
+ function scrub(t,x,y){const s=get(t);for(const spot of t.spots)if(Math.hypot(spot.x-x,spot.y-y)<=spot.r+8)s.cleared.add(spot.id);}
+ function toggle(board,index){const next=[...board],r=Math.floor(index/3),c=index%3;for(const[y,x]of[[r,c],[r-1,c],[r+1,c],[r,c-1],[r,c+1]])if(y>=0&&x>=0&&y<3&&x<3)next[y*3+x]=!next[y*3+x];return next;}
+ function reorder(t,id,index){const order=get(t).order,old=order.indexOf(id);if(old<0||index<0||index>=order.length)return;order.splice(old,1);order.splice(index,0,id);}
+ function bind(element,ctx){root=element;context=ctx;
+  root.addEventListener('input',event=>{const e=event.target,form=e.closest('.task-form'),t=taskOf(form);if(t&&e.matches('[data-gauge]')){get(t).gauges[Number(e.dataset.gauge)]=Number(e.value);form.querySelector(`[data-gauge-output="${e.dataset.gauge}"]`).textContent=e.value;sync(form,t,false);}});
+  root.addEventListener('click',async event=>{const b=event.target.closest('button'),form=b?.closest('.task-form'),t=taskOf(form);if(!t||!kinds.includes(t.kind)||context.paused())return;const s=get(t);let handled=true;
+   if(b.hasAttribute('data-game-reset')){states.delete(t.id);sync(form,t);return;}
+   if(b.dataset.sortUp)reorder(t,b.dataset.sortUp,s.order.indexOf(b.dataset.sortUp)-1);
+   else if(b.dataset.sortDown)reorder(t,b.dataset.sortDown,s.order.indexOf(b.dataset.sortDown)+1);
+   else if(b.dataset.wireLeft)s.selected=b.dataset.wireLeft;
+   else if(b.dataset.wireRight)connect(t,b.dataset.wireRight);
+   else if(b.hasAttribute('data-dial')){const i=Number(b.dataset.dial);s.dials[i]=(s.dials[i]+1)%4;}
+   else if(b.dataset.maze){const[r,c]=b.dataset.maze.split(',').map(Number);move(t,r,c);}
+   else if(b.dataset.mazeMove){const[dr,dc]=b.dataset.mazeMove.split(',').map(Number),[r,c]=s.path.at(-1);move(t,r+dr,c+dc);}
+   else if(b.dataset.scrub)s.cleared.add(b.dataset.scrub);
+   else if(b.hasAttribute('data-light')){const i=Number(b.dataset.light);s.moves.push(i);s.lights=toggle(s.lights,i);}
+   else if(b.hasAttribute('data-timing-start')){try{await context.start(t.id);}catch(e){context.toast(e.message);}return;}
+   else handled=false;
+   if(handled)sync(form,t);
+  });
+  root.addEventListener('pointerdown',event=>{if(context.paused())return;const form=event.target.closest('.task-form'),t=taskOf(form);if(!t)return;let mode;
+   if(event.target.closest('[data-sort-handle]'))mode='order';else if(event.target.closest('[data-wire-left]'))mode='wires';else if(event.target.closest('.clean-board'))mode='clean';else if(event.target.closest('.maze-board'))mode='maze';if(!mode)return;
+   drag={id:t.id,mode,pointer:event.pointerId,part:event.target.closest('[data-sort-handle]')?.dataset.sortHandle};
+   if(mode==='wires')get(t).selected=event.target.closest('[data-wire-left]').dataset.wireLeft;
+   root.setPointerCapture(event.pointerId);event.preventDefault();pointer(event);if(mode==='wires')sync(form,t);
+  });
+  function pointer(event){if(!drag)return;const form=formFor(drag.id),t=taskOf(form);if(!form||!t)return;const hit=document.elementFromPoint(event.clientX,event.clientY);if(drag.mode==='clean'){const rect=form.querySelector('.clean-board').getBoundingClientRect();scrub(t,(event.clientX-rect.left)/rect.width*100,(event.clientY-rect.top)/rect.height*100);sync(form,t);}
+   else if(drag.mode==='maze'){const cell=hit?.closest('[data-maze]');if(cell?.closest('form')===form){const[r,c]=cell.dataset.maze.split(',').map(Number);move(t,r,c);sync(form,t);}}
+   else if(drag.mode==='order'){const cell=hit?.closest('[data-sort-id]');if(cell?.closest('form')===form){reorder(t,drag.part,get(t).order.indexOf(cell.dataset.sortId));sync(form,t);}}
+  }
+  root.addEventListener('pointermove',event=>{if(drag){event.preventDefault();pointer(event);}});
+  root.addEventListener('pointerup',event=>{if(!drag)return;const form=formFor(drag.id),t=taskOf(form);if(t&&drag.mode==='wires'){const hit=document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-wire-right]');if(hit?.closest('form')===form)connect(t,hit.dataset.wireRight);sync(form,t);}if(root.hasPointerCapture(event.pointerId))root.releasePointerCapture(event.pointerId);drag=null;});
+  root.addEventListener('pointercancel',()=>{drag=null;});
+  root.addEventListener('keydown',event=>{const board=event.target.closest('.maze-board'),form=board?.closest('form'),t=taskOf(form);const delta={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[event.key];if(t&&delta&&!context.paused()){event.preventDefault();const[r,c]=get(t).path.at(-1);move(t,r+delta[0],c+delta[1]);sync(form,t);form.querySelector('.maze-board').focus();}});
+  root.addEventListener('toggle',event=>{const form=event.target.querySelector?.('.task-form'),t=taskOf(form);if(t)layout(form,t);},true);
+  window.addEventListener('resize',()=>restore(root,context.tasks()));
+ }
+ function restore(element,tasks){for(const t of tasks)if(kinds.includes(t.kind)){const form=[...element.querySelectorAll('.task-form')].find(f=>f.dataset.id===t.id);if(form)sync(form,t,false);}}
+ function tick(element,tasks,now){for(const t of tasks)if(t.kind==='timing'&&t.startedAt&&!t.done){const form=[...element.querySelectorAll('.task-form')].find(f=>f.dataset.id===t.id),marker=form?.querySelector('.timing-pointer');if(marker)marker.style.left=((now-t.startedAt)%t.period/t.period*100)+'%';}}
+ function retain(tasks){const ids=new Set(tasks.map(t=>t.id));for(const id of states.keys())if(!ids.has(id))states.delete(id);}
+ return {render,bind,restore,tick,retain,labels};
+})();
+
