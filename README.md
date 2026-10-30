@@ -115,3 +115,10 @@ O telão é acessível a quem conhece o código, como o lobby. Não exponha o c�
 
 Ative nas configurações antes de iniciar. Vidente consulta em segredo se alguém é assassino (desde a primeira noite, na fase de investigação). Médico previne a morte natural de um alvo. Guarda impede ataques contra outra pessoa e pode repetir a proteção. Médico e Guarda agem na fase dos anjos. Veterano resiste à primeira noite em que sofreria assassinato, sem ação manual. Todos vencem com a cidade. As quantidades iniciais são zero para preservar as configurações existentes.
 
+### Rastreador, Ilusionista e Oficina dos Fantasmas
+
+- Rastreador: seleciona um alvo na fase de investigação desde a primeira noite. Ao amanhecer recebe as pessoas visitadas pelo alvo, sem classe ou ação. Grupos investigados contam como várias visitas. O resultado é privado e só chega se o Rastreador sobreviver.
+- Ilusionista: integra a equipe dos assassinos, mas não ataca. Tem fase própria antes dos investigadores, 25 segundos por padrão. Uma única vez por partida, inverte a aparência de um alvo nas consultas do Vidente e investigações do Detetive durante aquela noite. Pode passar para guardar o poder. Duas ilusões sobre o mesmo alvo não se cancelam. É identificado como aliado dos assassinos nas investigações sem ilusão. A cidade vence se não restar nenhum assassino; assassinos e ilusionistas vencem juntos se forem os únicos vivos.
+- Cidadãos mortos recebem tarefas da Oficina, realizáveis também durante o dia. Cada acerto soma um ponto coletivo; a meta padrão é 10, configurável de 1 a 100. Uma proteção pronta impede apenas a morte natural na próxima resolução noturna, é consumida e zera a barra. Não acumula proteções nem permite contribuições enquanto já há uma pronta. Tarefas são renovadas a cada noite (mínimo de cinco para fantasmas). Mortos não votam, não usam habilidades e não recebem novos segredos. Outras classes mortas continuam apenas acompanhando.
+- No lobby, todos podem abrir a aba Classes e regras, com explicações das 11 classes, ordem das fases e Oficina. Rastreador e Ilusionista começam com quantidade zero; ative-os antes de iniciar.
+
