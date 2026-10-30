@@ -59,7 +59,7 @@ O Dockerfile já define `NODE_ENV=production` e `DATA_DIR=/data`. Coloque o serv
 - Alunos: entrada sem conta, reconexão, papel privado, aliados de assassinos e detetives, habilidades, desafios, votação, causas privadas da própria morte e resultado.
 - Telão: fases, relógio, participantes, presos, mortes, votação e vitória; sem ações ou papéis secretos.
 - Servidor: sorteio criptográfico, estado persistido antes de transmitir, validação de fase e prazo, impedimento de ações/votos repetidos e recuperação após reinício.
-- Desafios: 61 modelos parametrizados com tarefas de arrastar, conectar fios, calibrar reguladores, girar mecanismos, navegar em labirintos, limpar painéis, sincronizar sinais e resolver luzes, além de memória e respostas; números e símbolos variam. As tarefas de uma pessoa na mesma noite usam modelos diferentes e priorizam a variedade de mecânicas. Respostas e tentativas são verificadas no servidor. Os modelos fixos podem reaparecer em noites posteriores; não é um banco curricular ilimitado.
+- Desafios: 85 modelos parametrizados com quebra-cabeças deslizantes, transferência de líquidos, desenhos em grade, equilíbrio de pesos, tarefas de arrastar, conectar fios, calibrar reguladores, girar mecanismos, navegar em labirintos, limpar painéis, sincronizar sinais e resolver luzes, além de memória e respostas; números e símbolos variam. As tarefas de uma pessoa na mesma noite usam modelos diferentes e priorizam a variedade de mecânicas. Respostas e tentativas são verificadas no servidor. Os modelos fixos podem reaparecer em noites posteriores; não é um banco curricular ilimitado.
 
 ## Decisões de regras
 
@@ -110,4 +110,8 @@ O telão é acessível a quem conhece o código, como o lobby. Não exponha o c�
 - Depois da atividade, o professor pode excluir definitivamente a sala pelo painel, invalidando suas sessões.
 - Para backup simples, pare o serviço e copie o diretório de dados inteiro. Não copie apenas o `.sqlite` enquanto há gravações, pois o modo WAL usa arquivos auxiliares. Em produção, configure backup apropriado do SQLite e teste a restauração antes de depender dele.
 - Guarde a chave de recuperação de cada sala em local privado. Perder o cookie administrativo e essa chave exige intervenção do operador do banco.
+
+### Classes opcionais
+
+Ative nas configurações antes de iniciar. Vidente consulta em segredo se alguém é assassino (desde a primeira noite, na fase de investigação). Médico previne a morte natural de um alvo. Guarda impede ataques contra outra pessoa e pode repetir a proteção. Médico e Guarda agem na fase dos anjos. Veterano resiste à primeira noite em que sofreria assassinato, sem ação manual. Todos vencem com a cidade. As quantidades iniciais são zero para preservar as configurações existentes.
 
