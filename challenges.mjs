@@ -1,6 +1,6 @@
 import {randomInt,randomUUID} from 'node:crypto';
 export const TASK_LIMIT=50;
-export const interactiveKinds=['order','wires','calibrate','rotate','maze','clean','timing','lights'];
+export const interactiveKinds=['slide','pour','pixel','balance','order','wires','calibrate','rotate','maze','clean','timing','lights'];
 export function normalize(s){return String(s).normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase().replace(/\s+/g,' ');}
 const bank=[];
 const add=(category,kind,generate)=>bank.push({model:'modelo-'+(bank.length+1),category,kind,generate});
@@ -75,6 +75,25 @@ for(let mode=0;mode<4;mode++)add('Restaurar energia','lights',()=>{
  return make('Apague todas as luzes. Cada interruptor também muda seus vizinhos de cima, baixo, esquerda e direita.',[...moves].reverse().join(' '),{initial});
 });
 for(let mode=0;mode<4;mode++)add('Memória visual','sequence',()=>{const colors=['azul','vermelho','verde','amarelo'],sequence=Array.from({length:4+mode%2},()=>colors[randomInt(colors.length)]);return make('Memorize a sequência e reproduza as cores depois que ela se ocultar.',sequence.join(' '),{choices:colors,preview:sequence.join(' → '),hideAfter:4000+mode*500});});
+for(let mode=0;mode<6;mode++)add('Reconstruir mosaico','slide',()=>{
+ let tiles=[1,2,3,4,5,6,7,8,0],trace=[],blank=8;
+ for(let i=0;i<25+mode*5;i++){const candidates=[0,1,2,3,4,5,6,7,8].filter(j=>Math.abs(Math.floor(j/3)-Math.floor(blank/3))+Math.abs(j%3-blank%3)===1),next=candidates[randomInt(candidates.length)];trace.push(blank);[tiles[next],tiles[blank]]=[tiles[blank],tiles[next]];blank=next;}
+ return make('Deslize as peças vizinhas do espaço vazio para organizar 1 a 8. O vazio deve ficar no canto inferior direito.',trace.reverse().join(' '),{tiles});
+});
+for(let mode=0;mode<6;mode++)add('Transferir líquidos','pour',()=>{
+ const total=6+mode,capacity=[total,total,total],initial=[total,0,0],goal=[total,0,0],moves=[];
+ for(let i=0;i<8;i++){const from=randomInt(3),to=(from+randomInt(1,3))%3;if(goal[from]>0&&goal[to]<capacity[to]){goal[from]--;goal[to]++;moves.push(from+'>'+to);}}
+ if(goal.join()===initial.join()){goal[0]--;goal[1]++;moves.push('0>1');}
+ return make('Transfira uma unidade por vez: toque no recipiente de origem e depois no destino. Alcance os três volumes-alvo.',moves.join(' '),{capacity,initialVolumes:initial,goal});
+});
+for(let mode=0;mode<6;mode++)add('Reparar desenho','pixel',()=>{
+ const pattern=Array.from({length:25},()=>randomInt(2));pattern[12]=1;
+ return make('Reproduza o desenho de referência no painel vazio. Toque ou passe o dedo nas casas; use Apagar para corrigir.',pattern.join(''),{pattern});
+});
+for(let mode=0;mode<6;mode++)add('Equilibrar balança','balance',()=>{
+ const weights=sample([1,2,3,4,5,6,7,8,9,10,11,12],6),chosen=sample([0,1,2,3,4,5],3),target=chosen.reduce((n,i)=>n+weights[i],0);
+ return make('Coloque pesos no prato até igualar a massa indicada. Toque novamente em um peso para retirá-lo.',chosen.sort().join(' '),{weights,target});
+});
 export const bankSize=bank.length;
 export function challenge(kind=null,exclude=new Set()){
  const candidates=bank.filter(t=>(!kind||t.kind===kind)&&!exclude.has(t.model));if(!candidates.length)throw new Error('Não há modelos de tarefa disponíveis.');
@@ -82,6 +101,10 @@ export function challenge(kind=null,exclude=new Set()){
 }
 export function validateChallenge(task,answer,now=Date.now()){
  if(typeof answer!=='string'&&typeof answer!=='number')return false;const text=String(answer);if(text.length>4000)return false;
+ if(task.kind==='pixel')return text===task.pattern.join('');
+ if(task.kind==='balance'){const ids=text.trim().split(/\s+/).map(Number);return !!text.trim()&&new Set(ids).size===ids.length&&ids.every(i=>Number.isInteger(i)&&i>=0&&i<task.weights.length)&&ids.reduce((n,i)=>n+task.weights[i],0)===task.target;}
+ if(task.kind==='slide'){let tiles=[...task.tiles];const moves=text.trim()?text.trim().split(/\s+/).map(Number):[];if(moves.length>500)return false;for(const i of moves){const b=tiles.indexOf(0);if(!Number.isInteger(i)||i<0||i>8||Math.abs(Math.floor(i/3)-Math.floor(b/3))+Math.abs(i%3-b%3)!==1)return false;[tiles[i],tiles[b]]=[tiles[b],tiles[i]];}return tiles.join()==='1,2,3,4,5,6,7,8,0';}
+ if(task.kind==='pour'){const volumes=[...task.initialVolumes],moves=text.trim().split(/\s+/);if(moves.length>500)return false;for(const move of moves){if(!/^[0-2]>[0-2]$/.test(move))return false;const[a,b]=move.split('>').map(Number);if(a===b||!volumes[a]||volumes[b]>=task.capacity[b])return false;volumes[a]--;volumes[b]++;}return volumes.join()===task.goal.join();}
  if(task.kind==='timing'){if(!task.startedAt||text!=='stop')return false;const position=(now-task.startedAt)%task.period;return now>=task.startedAt+500&&position>=task.targetStart-100&&position<=task.targetEnd+100;}
  if(task.kind==='maze'){const path=text.split('|').map(step=>step.split(',').map(Number));if(path.length<2||path.length>400||path.some(p=>p.length!==2||p.some(n=>!Number.isInteger(n))))return false;if(path[0].join(',')!==task.start.join(',')||path.at(-1).join(',')!==task.goal.join(','))return false;return path.every(([r,c],i)=>task.grid[r]?.[c]==='.'&&(!i||Math.abs(r-path[i-1][0])+Math.abs(c-path[i-1][1])===1));}
  if(task.kind==='lights'){if(!text.trim())return false;const moves=text.trim().split(/\s+/).map(Number);if(moves.length>500||moves.some(n=>!Number.isInteger(n)||n<0||n>8))return false;return moves.reduce((board,n)=>toggleLights(board,n),task.initial).every(x=>!x);}
