@@ -28,7 +28,7 @@ export function createApp({dbPath=process.env.DATA_DIR?resolve(process.env.DATA_
  try{
  const url=new URL(req.url,'http://localhost');
  if(req.method==='GET'&&url.pathname==='/health')return json(res,{ok:true});
- if(!url.pathname.startsWith('/api/')){game.ensure(req.method==='GET');const files={'/':'index.html','/app.js':'app.js','/minigames.js':'minigames.js','/style.css':'style.css'};const file=files[url.pathname];if(!file)return json(res,{error:'Não encontrado.'},404);res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(readFileSync(resolve(root,'public',file)));}
+ if(!url.pathname.startsWith('/api/')){game.ensure(req.method==='GET');const files={'/':'index.html','/ui-sync.js':'ui-sync.js','/app.js':'app.js','/minigames.js':'minigames.js','/style.css':'style.css'};const file=files[url.pathname];if(!file)return json(res,{error:'Não encontrado.'},404);res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(readFileSync(resolve(root,'public',file)));}
  const ip=req.socket.remoteAddress,traffic=req.method==='GET'?'read':'write';rateLimit(`network:${ip}:${traffic}`,30000);
  if(req.method!=='GET'){const origin=req.headers.origin;if(origin)game.ensure(new URL(origin).host===req.headers.host,'Origem inválida.');game.ensure((req.headers['content-type']||'').startsWith('application/json'),'Envie JSON.');}
  if(url.pathname==='/api/rooms'&&req.method==='POST'){
