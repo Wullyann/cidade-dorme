@@ -1,6 +1,6 @@
 import {randomInt,randomUUID} from 'node:crypto';
 export const TASK_LIMIT=50;
-export const interactiveKinds=['slide','pour','pixel','balance','order','wires','calibrate','rotate','maze','clean','timing','lights'];
+export const interactiveKinds=['hanoi','flood','domino','gears','slide','pour','pixel','balance','order','wires','calibrate','rotate','maze','clean','timing','lights'];
 export function normalize(s){return String(s).normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase().replace(/\s+/g,' ');}
 const bank=[];
 const add=(category,kind,generate)=>bank.push({model:'modelo-'+(bank.length+1),category,kind,generate});
@@ -94,6 +94,14 @@ for(let mode=0;mode<6;mode++)add('Equilibrar balança','balance',()=>{
  const weights=sample([1,2,3,4,5,6,7,8,9,10,11,12],6),chosen=sample([0,1,2,3,4,5],3),target=chosen.reduce((n,i)=>n+weights[i],0);
  return make('Coloque pesos no prato até igualar a massa indicada. Toque novamente em um peso para retirá-lo.',chosen.sort().join(' '),{weights,target});
 });
+
+for(let mode=0;mode<12;mode++)add('Transportar discos','hanoi',()=>{const size=3+mode%2,moves=[];function solve(n,a,b,c){if(!n)return;solve(n-1,a,c,b);moves.push(a+'>'+b);solve(n-1,c,b,a);}solve(size,0,2,1);return make('Leve todos os discos da torre A até C. Toque na origem e no destino. Um disco maior nunca pode ficar sobre um menor.',moves.join(' '),{size});});
+export function floodFill(board,color){const out=[...board],size=Math.sqrt(out.length),old=out[0],stack=[0],seen=new Set();while(stack.length){const i=stack.pop();if(seen.has(i)||out[i]!==old)continue;seen.add(i);for(const j of [i-size,i+size,...(i%size?[i-1]:[]),...(i%size<size-1?[i+1]:[])])if(j>=0&&j<out.length)stack.push(j);}for(const i of seen)out[i]=color;return out;}
+for(let mode=0;mode<12;mode++)add('Expandir pigmento','flood',()=>{const size=4+mode%3,board=Array.from({length:size*size},()=>randomInt(4));let state=[...board],moves=[];while(new Set(state).size>1){const color=(state[0]+1)%4;moves.push(color);state=floodFill(state,color);}return make('Comece no canto superior esquerdo. Escolha cores para expandir a região até todo o painel ter a mesma cor.',moves.join(' '),{board});});
+for(let mode=0;mode<12;mode++)add('Montar trilha de dominós','domino',()=>{const numbers=Array.from({length:5+mode%4},()=>randomInt(1,7)),dominoes=numbers.slice(1).map((n,i)=>({id:'d'+i,a:numbers[i],b:n}));return make('Monte uma corrente usando todas as peças. O número da ponta deve combinar com o início da próxima peça. Use Girar para inverter uma peça antes de encaixar.',dominoes.map(d=>d.id+':0').join(' '),{dominoes:shuffle(dominoes)});});
+export function gearMove(values,index){return values.map((v,i)=>(v+(i===index?1:i===(index+1)%values.length?2:0))%10);}
+for(let mode=0;mode<12;mode++)add('Destravar engrenagens','gears',()=>{const initial=Array.from({length:3+mode%2},()=>randomInt(10)),moves=Array.from({length:3+mode%4},()=>randomInt(initial.length)),goal=moves.reduce(gearMove,initial);return make('Ajuste os mostradores até o código-alvo. Cada toque avança seu mostrador em 1 e o seguinte em 2 (depois de 9 volta para 0).',moves.join(' '),{initialGears:initial,goal});});
+
 export const bankSize=bank.length;
 export function challenge(kind=null,exclude=new Set()){
  const candidates=bank.filter(t=>(!kind||t.kind===kind)&&!exclude.has(t.model));if(!candidates.length)throw new Error('Não há modelos de tarefa disponíveis.');
@@ -101,6 +109,12 @@ export function challenge(kind=null,exclude=new Set()){
 }
 export function validateChallenge(task,answer,now=Date.now()){
  if(typeof answer!=='string'&&typeof answer!=='number')return false;const text=String(answer);if(text.length>4000)return false;
+ if(['hanoi','flood','domino','gears'].includes(task.kind)){const moves=text.trim()?text.trim().split(/\s+/):[];if(moves.length>500)return false;
+ if(task.kind==='hanoi'){const towers=[Array.from({length:task.size},(_,i)=>task.size-i),[],[]];for(const m of moves){if(!/^[0-2]>[0-2]$/.test(m))return false;const[a,b]=m.split('>').map(Number),disk=towers[a].at(-1);if(a===b||!disk||(towers[b].length&&towers[b].at(-1)<disk))return false;towers[b].push(towers[a].pop());}return towers[2].length===task.size;}
+ if(task.kind==='flood'){if(moves.some(m=>! /^[0-3]$/.test(m)))return false;return new Set(moves.reduce((board,m)=>floodFill(board,Number(m)),task.board)).size===1;}
+ if(task.kind==='gears'){if(moves.some(m=>! /^\d$/.test(m)||Number(m)>=task.initialGears.length))return false;return moves.reduce((v,m)=>gearMove(v,Number(m)),task.initialGears).join()===task.goal.join();}
+ const used=new Set();let last=null;for(const m of moves){const[id,flip,...rest]=m.split(':'),piece=task.dominoes.find(d=>d.id===id);if(!piece||used.has(id)||rest.length||!['0','1'].includes(flip))return false;const a=flip==='1'?piece.b:piece.a,b=flip==='1'?piece.a:piece.b;if(last!==null&&last!==a)return false;used.add(id);last=b;}return used.size===task.dominoes.length;
+ }
  if(task.kind==='pixel')return text===task.pattern.join('');
  if(task.kind==='balance'){const ids=text.trim().split(/\s+/).map(Number);return !!text.trim()&&new Set(ids).size===ids.length&&ids.every(i=>Number.isInteger(i)&&i>=0&&i<task.weights.length)&&ids.reduce((n,i)=>n+task.weights[i],0)===task.target;}
  if(task.kind==='slide'){let tiles=[...task.tiles];const moves=text.trim()?text.trim().split(/\s+/).map(Number):[];if(moves.length>500)return false;for(const i of moves){const b=tiles.indexOf(0);if(!Number.isInteger(i)||i<0||i>8||Math.abs(Math.floor(i/3)-Math.floor(b/3))+Math.abs(i%3-b%3)!==1)return false;[tiles[i],tiles[b]]=[tiles[b],tiles[i]];}return tiles.join()==='1,2,3,4,5,6,7,8,0';}
