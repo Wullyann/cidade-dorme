@@ -127,3 +127,9 @@ Ative nas configurações antes de iniciar. Vidente consulta em segredo se algu�
 133 modelos parametrizados; 16 mecânicas interativas, com torres de discos, expansão de cores, correntes de dominós e engrenagens ligadas. Novas salas têm 20 tarefas por noite.
 A votação termina assim que todos os vivos e livres registram voto ou abstenção. O cronômetro continua como prazo máximo. Abstenções são contadas como uma opção: se liderarem ou empatarem com o candidato mais votado, ninguém é eliminado. Uma fase de resultado ocupa a tela antes da próxima noite, usando o tempo de amanhecer configurado (12 segundos por padrão). Se a votação encerrar a partida, o resultado permanece na tela final. A votação secreta mantém a identidade dos votantes oculta.
 
+### Interface durante sincronização
+
+A página atualiza seus elementos sem recriar listas, formulários ou tarefas em uso. Seletores nativos e opções inalteradas permanecem abertos; busca, seleção de texto, painéis abertos/fechados e rascunhos são preservados. Alvos que deixam de ser válidos continuam sendo removidos. Envios repetidos do mesmo formulário são bloqueados enquanto a solicitação está em andamento. Estados antigos recebidos fora de ordem são ignorados; Nova partida mantém a revisão crescente. Gestos e reguladores respeitam a pausa.
+
+Validação: qa/realtime.mjs simula oito jogadores com transmissões reais, abre o seletor nativo via mouse e verifica que segue aberto durante atualizações, testa arrasto enquanto outro jogador age, busca filtrada, seleção de texto, rolagem, pausa, atraso de envio e nova partida.
+
